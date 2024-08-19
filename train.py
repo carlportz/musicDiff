@@ -37,7 +37,7 @@ def _grayscale_to_rgb(img):
 
 
 def main(args):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    device = torch.device('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
     model = UNet(3, image_size=args.resolution, hidden_dims=[64, 128, 256, 512],
                  use_flash_attn=args.use_flash_attn)
     noise_scheduler = DDIMScheduler(num_train_timesteps=n_timesteps,
@@ -115,7 +115,7 @@ def main(args):
         num_training_steps=total_num_steps,
     )
 
-    summary(model, [(1, 3, args.resolution, args.resolution), (1,)], verbose=1)
+    #summary(model, [(1, 3, args.resolution, args.resolution), (1,)], verbose=1)
 
     scaler = GradScaler(enabled=args.fp16_precision)
     global_step = 0

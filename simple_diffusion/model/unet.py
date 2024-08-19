@@ -100,6 +100,7 @@ class UNet(nn.Module):
 
     def __init__(self,
                  in_channels,
+                 out_channels,
                  hidden_dims=[64, 128, 256, 512],
                  image_size=64,
                  use_flash_attn=False):
@@ -107,6 +108,7 @@ class UNet(nn.Module):
 
         self.sample_size = image_size
         self.in_channels = in_channels
+        self.out_channels = out_channels
         self.hidden_dims = hidden_dims
 
         timestep_input_dim = hidden_dims[0]
@@ -163,7 +165,7 @@ class UNet(nn.Module):
 
         self.out_block = ResidualBlock(hidden_dims[0] * 2, hidden_dims[0],
                                        time_embed_dim)
-        self.conv_out = nn.Conv2d(hidden_dims[0], out_channels=3, kernel_size=1)
+        self.conv_out = nn.Conv2d(hidden_dims[0], out_channels=self.out_channels, kernel_size=1)
 
     def forward(self, sample, timesteps):
         if not torch.is_tensor(timesteps):
