@@ -29,16 +29,12 @@ torch.cuda.manual_seed(SEED)
 
 n_timesteps = 1000
 n_inference_timesteps = 250
-
-def _grayscale_to_rgb(img):
-    if img.mode != "RGB":
-        return img.convert("RGB")
-    return img
+n_channels = 2
 
 
 def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
-    model = UNet(3, image_size=args.resolution, hidden_dims=[64, 128, 256, 512],
+    model = UNet(in_channels=n_channels, out_channels=n_channels, image_size=args.resolution, hidden_dims=[64, 128, 256, 512],
                  use_flash_attn=args.use_flash_attn)
     noise_scheduler = DDIMScheduler(num_train_timesteps=n_timesteps,
                                     beta_schedule="cosine")
@@ -56,54 +52,19 @@ def main(args):
     )
 
     tfms = transforms.Compose([
-        transforms.Resize((args.resolution, args.resolution)),
-        transforms.Lambda(_grayscale_to_rgb),
         transforms.ToTensor(),
-        # normalize to [-1, 1] for faster convergence and numerical stability
-        transforms.Lambda(lambda x: x * 2 - 1)
+        transforms.Resize((args.resolution, args.resolution)),
+        # normalize data by largest norm across all channels
+        transforms.Lambda(lambda x: x / torch.max(torch.norm(x, dim=0)))
     ])
+    
+    dataset = CustomDataset(args.dataset_path, transforms=tfms)
+    train_dataloader = torch.utils.data.DataLoader(dataset, 
+        batch_size=args.train_batch_size, 
+        shuffle=True)
+    steps_per_epoch = len(train_dataloader)
 
-    if args.dataset_name in ["combined", "yfcc7m"]:
-        dataset = get_dataset(args.dataset_name,
-                              args.dataset_path,
-                              transforms=tfms)
-    elif args.dataset_name is not None:
-        dataset = load_dataset(
-            args.dataset_name,
-            args.dataset_config_name,
-            cache_dir=args.cache_dir,
-            split="train",
-        )
-
-        def aug(examples):
-            images = [
-                tfms(image) for image in examples["image"]
-            ]
-            return {"image": images}
-
-        dataset.set_transform(aug)
-    else:
-        def aug(examples):
-            images = [
-                tfms(image) for image in examples
-            ]
-            return {"image": images}
-
-        df = pd.read_pickle(args.dataset_path)
-        dataset = CustomDataset(df, tfms)
-
-    if args.dataset_name == "yfcc7m":
-        train_dataloader = wds.WebLoader(dataset,
-                                         num_workers=2,
-                                         batch_size=args.train_batch_size)
-        # hardcoded for num images = 7329280 :/
-        steps_per_epcoch = 7329280 // args.train_batch_size
-    else:
-        train_dataloader = torch.utils.data.DataLoader(
-            dataset, batch_size=args.train_batch_size, shuffle=True)
-        steps_per_epcoch = len(train_dataloader)
-
-    total_num_steps = (steps_per_epcoch * args.num_epochs) // args.gradient_accumulation_steps
+    total_num_steps = (steps_per_epoch * args.num_epochs) // args.gradient_accumulation_steps
     total_num_steps += int(total_num_steps * 10/100)
     gamma = args.gamma
     ema = EMA(model, gamma, total_num_steps)
@@ -125,6 +86,7 @@ def main(args):
         progress_bar.set_description(f"Epoch {epoch}")
         losses_log = 0
         for step, batch in enumerate(train_dataloader):
+            # TODO: adjust for custom dataset
             orig_images = batch["image"].to(device)
 
             batch_size = orig_images.shape[0]

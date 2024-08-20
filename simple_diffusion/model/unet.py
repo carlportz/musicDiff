@@ -99,8 +99,8 @@ class ResidualBlock(nn.Module):
 class UNet(nn.Module):
 
     def __init__(self,
-                 in_channels,
-                 out_channels,
+                 in_channels=3,
+                 out_channels=3,
                  hidden_dims=[64, 128, 256, 512],
                  image_size=64,
                  use_flash_attn=False):
