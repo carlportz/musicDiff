@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+import os
 
 class CustomDataset(Dataset):
     def __init__(self, path_to_npz_files, transforms=None):
@@ -12,10 +13,13 @@ class CustomDataset(Dataset):
             data = np.array([data.real, data.imag])
             data = np.transpose(data, (1, 2, 0))
             self.data.append(data)
-        self.data = np.array(self.data)
+        self.data = np.array(self.data, dtype=np.float32)
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        return self.transforms(self.data[idx])
+        if self.transforms is not None:
+            return self.transforms(self.data[idx])
+        else:
+            return self.data[idx]
