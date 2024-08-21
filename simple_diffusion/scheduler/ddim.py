@@ -123,20 +123,19 @@ class DDIMScheduler:
         device=None,
     ):
         device = device or ("cuda" if torch.cuda.is_available() else "cpu")
-        image = torch.randn(
+        sample = torch.randn(
             (batch_size, model.in_channels, model.sample_size, model.sample_size),
             generator=generator,
         ).to(device)
         self._set_timesteps(num_inference_steps)
 
         for t in tqdm(self.timesteps):
-            model_output = model(image, t)["sample"]
-            # predict previous mean of image x_t-1 and add variance depending on eta
+            model_output = model(sample, t)["sample"]
+            # predict previous mean of sample x_t-1 and add variance depending on eta
             # do x_t -> x_t-1
-            image = self._step(model_output, t, image, eta, generator=generator)
+            sample = self._step(model_output, t, sample, eta, generator=generator)
         
-        image = unnormalize_to_zero_to_one(image)
-        return {"sample": image.cpu().permute(0, 2, 3, 1).numpy(), "sample_pt": image}
+        return {"sample": sample.cpu().permute(0, 2, 3, 1).numpy(), "sample_pt": sample}
 
     def __len__(self):
         return self.num_train_timesteps
