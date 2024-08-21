@@ -8,23 +8,32 @@ from torchvision import utils
 import matplotlib.pyplot as plt
 
 
-def save_images(generated_images, epoch, args, contexts=None):
-    images = generated_images["sample"]
-    images_processed = (images * 255).round().astype("uint8")
+def save_samples(generated_data, epoch, args, contexts=None):
+    # generated data has shape (batch_size, n_channels, height, width)
+    # and is in [-1, 1]
+    samples = generated_data["sample"]
+    
+    # convert to [0, 255] and round to integers
+    images_processed = (unnormalize_to_zero_to_one(samples) * 255).round().astype("uint8")
+
+    # add third channel of zeros
+    images_processed = np.concatenate([images_processed, np.zeros_like(images_processed)], axis=1)
 
     current_date = datetime.today().strftime('%Y%m%d_%H%M%S')
     out_dir = f"./{args.samples_dir}/{current_date}_{args.dataset_name}_{epoch}/"
     os.makedirs(out_dir)
-    for idx, image in enumerate(images_processed):
+    for idx, (data, image) in enumerate(zip(samples, images_processed)):
         image = Image.fromarray(image)
         if contexts:
             image.save(f"{out_dir}/{epoch}_{contexts[idx]}_{idx}.jpeg")
+            np.save(f"{out_dir}/{epoch}_{contexts[idx]}_{idx}.npy", data)
         else:
             image.save(f"{out_dir}/{epoch}_{idx}.jpeg")
+            np.save(f"{out_dir}/{epoch}_{idx}.npy", data)
 
-    utils.save_image(generated_images["sample_pt"],
-                     f"{out_dir}/{epoch}_grid.jpeg",
-                     nrow=args.eval_batch_size // 4)
+    # utils.save_image(generated_images["sample_pt"],
+    #                  f"{out_dir}/{epoch}_grid.jpeg",
+    #                  nrow=args.eval_batch_size // 4)
 
 
 def unnormalize_to_zero_to_one(t):
