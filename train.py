@@ -13,10 +13,9 @@ from torchinfo import summary
 
 from simple_diffusion.scheduler import DDIMScheduler
 from simple_diffusion.model import UNet
-from simple_diffusion.utils import save_images
-from simple_diffusion.dataset import CustomDataset, get_dataset
+from simple_diffusion.utils import save_samples
+from simple_diffusion.dataset import CustomDataset
 import pandas as pd
-import webdataset as wds
 
 from simple_diffusion.ema import EMA
 
@@ -34,6 +33,7 @@ n_channels = 2
 
 def main(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu')
+    print(f"Using device: {device}")
     model = UNet(in_channels=n_channels, out_channels=n_channels, image_size=args.resolution, hidden_dims=[64, 128, 256, 512],
                  use_flash_attn=args.use_flash_attn)
     noise_scheduler = DDIMScheduler(num_train_timesteps=n_timesteps,
@@ -82,25 +82,24 @@ def main(args):
     global_step = 0
     losses = []
     for epoch in range(args.num_epochs):
-        progress_bar = tqdm(total=steps_per_epcoch)
+        progress_bar = tqdm(total=steps_per_epoch)
         progress_bar.set_description(f"Epoch {epoch}")
         losses_log = 0
         for step, batch in enumerate(train_dataloader):
-            # TODO: adjust for custom dataset
-            orig_images = batch["image"].to(device)
+            batch = batch.to(device)
 
-            batch_size = orig_images.shape[0]
-            noise = torch.randn(orig_images.shape).to(device)
+            batch_size = batch.shape[0]
+            noise = torch.randn(batch.shape).to(device)
             timesteps = torch.randint(0,
                                       noise_scheduler.num_train_timesteps,
                                       (batch_size,),
                                       device=device).long()
-            noisy_images = noise_scheduler.add_noise(orig_images, noise,
+            noisy_batch = noise_scheduler.add_noise(batch, noise,
                                                      timesteps)
 
             optimizer.zero_grad()
             with autocast(enabled=args.fp16_precision):
-                noise_pred = model(noisy_images, timesteps)["sample"]
+                noise_pred = model(noisy_batch, timesteps)["sample"]
                 loss = F.l1_loss(noise_pred, noise)
 
             scaler.scale(loss).backward()
@@ -128,20 +127,20 @@ def main(args):
             progress_bar.set_postfix(**logs)
             global_step += 1
 
-            # Generate sample images for visual inspection
+            # Generate sample data for visual inspection
             if global_step % args.save_model_steps == 0:
                 ema.ema_model.eval()
                 with torch.no_grad():
                     # has to be instantiated every time, because of reproducibility
                     generator = torch.manual_seed(0)
-                    generated_images = noise_scheduler.generate(
+                    generated_data = noise_scheduler.generate(
                         ema.ema_model,
                         num_inference_steps=n_inference_timesteps,
                         generator=generator,
                         eta=1.0,
-                        batch_size=args.eval_batch_size)
+                        batch_size=args.eval_batch_size) # data is in [-1, 1]
 
-                    save_images(generated_images, epoch, args)
+                    save_samples(generated_data, epoch, args)
 
                     torch.save(
                         {
