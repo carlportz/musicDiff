@@ -51,14 +51,23 @@ def main(args):
         weight_decay=args.adam_weight_decay,
     )
 
-    tfms = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Resize((args.resolution, args.resolution)),
-        # normalize data by largest norm across all channels
-        transforms.Lambda(lambda x: x / torch.max(torch.norm(x, dim=0)))
-    ])
-    
-    dataset = CustomDataset(args.dataset_path, transforms=tfms)
+    if args.polar:
+        tfms = transforms.Compose([
+            transforms.ToTensor(), 
+            transforms.Resize((args.resolution, args.resolution)),
+            transforms.Lambda(lambda x: torch.stack([
+                ((x[0] / torch.max(torch.abs(x[0])) - 0.5) * 2).float(),
+                (x[1] / torch.max(torch.abs(x[1]))).float()
+            ]))
+        ])
+    else:
+        tfms = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Resize((args.resolution, args.resolution)),
+            transforms.Lambda(lambda x: (x / torch.max(torch.norm(x, dim=0))).float())
+        ])
+        
+    dataset = CustomDataset(args.dataset_path, polar=args.polar, transforms=tfms)
     train_dataloader = torch.utils.data.DataLoader(dataset, 
         batch_size=args.train_batch_size, 
         shuffle=True)
@@ -191,9 +200,13 @@ if __name__ == "__main__":
                         action='store_true',
                         help='Whether to use 16-bit precision for GPU training')
     parser.add_argument('--gamma',
-                    default=0.996,
-                    type=float,
-                    help='Initial EMA coefficient')
+                        default=0.996,
+                        type=float,
+                        help='Initial EMA coefficient')
+    parser.add_argument('--polar', 
+                        action='store_true',
+                        default=False,
+                        help='Whether to use amplitude and phase as input channels. Default: Real and Imaginary parts')
 
     args = parser.parse_args()
 
