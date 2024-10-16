@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+from simple_diffusion.utils import numpy_to_pil
 import os
 
 class CustomDataset(Dataset):
@@ -16,7 +17,9 @@ class CustomDataset(Dataset):
                 data = np.array([data.real, data.imag])
             data = np.transpose(data, (1, 2, 0)) # (width, height, channels)
             self.data.append(data)
-        self.data = np.array(self.data)
+        self.data = np.array(self.data) # (n_samples, width, height, channels)
+
+        # TODO: Save training data as images
 
     def __len__(self):
         return len(self.data)

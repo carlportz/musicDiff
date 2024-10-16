@@ -128,16 +128,16 @@ def main(args):
             logs = {
                 "loss_avg": losses_log / (step + 1),
                 "loss": loss.detach().item(),
-                "lr": lr_scheduler.get_last_lr()[0],
+                #"lr": lr_scheduler.get_last_lr()[0],
                 "step": global_step,
-                "gamma": gamma
+                #"gamma": gamma
             }
 
             progress_bar.set_postfix(**logs)
             global_step += 1
 
             # Generate sample data for visual inspection
-            if global_step % args.save_model_steps == 0:
+            if global_step % args.save_model_steps == 0 or (epoch == args.num_epochs - 1 and step == len(train_dataloader) - 1):
                 ema.ema_model.eval()
                 with torch.no_grad():
                     # has to be instantiated every time, because of reproducibility
