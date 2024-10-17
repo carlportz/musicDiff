@@ -53,7 +53,7 @@ def main(args):
 
     if args.polar:
         tfms = transforms.Compose([
-            transforms.ToTensor(), 
+            transforms.ToTensor(),
             transforms.Resize((args.resolution, args.resolution)),
             transforms.Lambda(lambda x: torch.stack([
                 ((x[0] / torch.max(torch.abs(x[0])) - 0.5) * 2).float(),
@@ -68,6 +68,7 @@ def main(args):
         ])
         
     dataset = CustomDataset(args.dataset_path, polar=args.polar, transforms=tfms)
+    dataset.save_as_images()
     train_dataloader = torch.utils.data.DataLoader(dataset, 
         batch_size=args.train_batch_size, 
         shuffle=True)
@@ -137,7 +138,7 @@ def main(args):
             global_step += 1
 
             # Generate sample data for visual inspection
-            if global_step % args.save_model_steps == 0 or (epoch == args.num_epochs - 1 and step == len(train_dataloader) - 1):
+            if (epoch % args.save_model_epochs == 0 and epoch > 1 and ) or (epoch == args.num_epochs - 1 and step == len(train_dataloader) - 1):
                 ema.ema_model.eval()
                 with torch.no_grad():
                     # has to be instantiated every time, because of reproducibility
@@ -164,7 +165,7 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Simple example of a training script.")
+                        description="Simple example of a training script.")
     parser.add_argument("--dataset_name", type=str, default=None)
     parser.add_argument('--dataset_path',
                         type=str,
@@ -181,7 +182,7 @@ if __name__ == "__main__":
     parser.add_argument("--train_batch_size", type=int, default=16)
     parser.add_argument("--eval_batch_size", type=int, default=16)
     parser.add_argument("--num_epochs", type=int, default=1)
-    parser.add_argument("--save_model_steps", type=int, default=1000)
+    parser.add_argument("--save_model_epochs", type=int, default=10)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
     parser.add_argument("--learning_rate", type=float, default=1e-4)
     parser.add_argument("--lr_scheduler", type=str, default="cosine")

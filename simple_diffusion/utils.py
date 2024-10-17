@@ -12,6 +12,10 @@ def save_samples(generated_data, epoch, args, contexts=None):
     # generated_data has shape (batch_size, height, width, n_channels)
     # and is in [-1, 1]
     samples = generated_data["sample"]
+
+    # normalize channels by norm if real and imaginary parts are given
+    if not args.polar:
+        samples = samples / np.linalg.norm(samples, axis=-1, keepdims=True)
     
     # convert to [0, 255] and round to integers
     images_processed = ((samples + 1) * 0.5 * 255).round().astype("uint8")
@@ -26,10 +30,10 @@ def save_samples(generated_data, epoch, args, contexts=None):
     for idx, (data, image) in enumerate(zip(samples, images_processed)):
         image = Image.fromarray(image)
         if contexts is not None:
-            image.save(f"{out_dir}/{epoch}_{contexts[idx]}_{idx}.jpeg")
+            image.save(f"{out_dir}/{epoch}_{contexts[idx]}_{idx}.png")
             np.save(f"{out_dir}/{epoch}_{contexts[idx]}_{idx}.npy", data)
         else:
-            image.save(f"{out_dir}/{epoch}_{idx}.jpeg")
+            image.save(f"{out_dir}/{epoch}_{idx}.png")
             np.save(f"{out_dir}/{epoch}_{idx}.npy", data)
 
     # utils.save_image(generated_images["sample_pt"],
