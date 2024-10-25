@@ -91,7 +91,7 @@ def main(args):
     scaler = GradScaler(enabled=args.fp16_precision)
     global_step = 0
     losses = []
-    for epoch in range(args.num_epochs):
+    for epoch in range(1, args.num_epochs + 1):
         progress_bar = tqdm(total=steps_per_epoch)
         progress_bar.set_description(f"Epoch {epoch}")
         losses_log = 0
@@ -138,26 +138,27 @@ def main(args):
             global_step += 1
 
             # Generate sample data for visual inspection
-            if (epoch % args.save_model_epochs == 0 and epoch > 1 and ) or (epoch == args.num_epochs - 1 and step == len(train_dataloader) - 1):
-                ema.ema_model.eval()
-                with torch.no_grad():
-                    # has to be instantiated every time, because of reproducibility
-                    generator = torch.manual_seed(0)
-                    generated_data = noise_scheduler.generate(
-                        ema.ema_model,
-                        num_inference_steps=n_inference_timesteps,
-                        generator=generator,
-                        eta=1.0,
-                        batch_size=args.eval_batch_size) # data is in [-1, 1]
+            if epoch % args.save_model_epochs == 0 or epoch == args.num_epochs:
+                if step == len(train_dataloader) - 1:
+                    ema.ema_model.eval()
+                    with torch.no_grad():
+                        # has to be instantiated every time, because of reproducibility
+                        generator = torch.manual_seed(0)
+                        generated_data = noise_scheduler.generate(
+                            ema.ema_model,
+                            num_inference_steps=n_inference_timesteps,
+                            generator=generator,
+                            eta=1.0,
+                            batch_size=args.eval_batch_size) # data is in [-1, 1]
 
-                    save_samples(generated_data, epoch, args)
+                        save_samples(generated_data, epoch, args)
 
-                    torch.save(
-                        {
-                            'model_state': model.state_dict(),
-                            'ema_model_state': ema.ema_model.state_dict(),
-                            'optimizer_state': optimizer.state_dict(),
-                        }, args.output_dir)
+                        torch.save(
+                            {
+                                'model_state': model.state_dict(),
+                                'ema_model_state': ema.ema_model.state_dict(),
+                                'optimizer_state': optimizer.state_dict(),
+                            }, args.output_dir)
 
         progress_bar.close()
         losses.append(losses_log / (step + 1))
