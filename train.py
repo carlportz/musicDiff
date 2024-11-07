@@ -57,7 +57,8 @@ def main(args):
             transforms.Resize((args.resolution, args.resolution)),
             transforms.Lambda(lambda x: torch.stack([
                 ((x[0] / torch.max(torch.abs(x[0])) - 0.5) * 2).float(),
-                (x[1] / torch.max(torch.abs(x[1]))).float()
+                #(x[1] / torch.max(torch.abs(x[1]))).float() # or pi
+                (x[1] / np.pi).float()
             ]))
         ])
     else:

@@ -33,6 +33,8 @@ class CustomDataset(Dataset):
     def save_as_images(self, out_dir="images"):
         print("Saving training data as images...")
         for idx, data in enumerate(self.data):
+            np.save(f"{out_dir}/sample_{idx}.npy", data)
+
             if self.polar:
                 data = np.stack([data[:,:,0] / np.max(data[:,:,0]) * 255, (data[:,:,1] / np.max(np.abs(data[:,:,1])) + 1) * 0.5 * 255, np.zeros_like(data[:,:,0])], axis=-1).astype("uint8")
             

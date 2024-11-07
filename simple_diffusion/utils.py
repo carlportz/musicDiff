@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 
 
 def save_samples(generated_data, epoch, args, contexts=None):
-    # generated_data has shape (batch_size, height, width, n_channels)
+    # samples have shape (batch_size, height, width, n_channels)
     # and is in [-1, 1]
     samples = generated_data["sample"]
 
